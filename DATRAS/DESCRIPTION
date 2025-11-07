@@ -14,7 +14,7 @@ Suggests:
     mapdata,
     maps,
     mgcv,
-    multicore,
+    parallel
 Imports:
     icesDatras
 License: GPL
