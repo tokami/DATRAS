@@ -1,23 +1,30 @@
 ## ---------------------------------------------------------------------------
 ##' Download raw exchange data from DATRAS web services.
 ##'
-##' This function downloads raw exchange data and converts it to a DATRASraw object.
-##' If multiple surveys are supplied, all files are read and combined to
+##' This function downloads raw exchange data and converts it to a DATRASraw
+##' object. If multiple surveys are supplied, all files are read and combined to
 ##' a single object.
 ##' @title Read exchange data into R.
-##' @param survey Name of survey to download (For a list of available names run \code{icesDatras::getSurveyList()})
+##' @param survey Name of survey to download (For a list of available names run
+##'     \code{icesDatras::getSurveyList()})
 ##' @param quarters Vector of quarters to download.
 ##' @param years Vector of years to download.
-##' @param strict if TRUE, missing haul ids in age data should be unqiuely matched when filled in, if FALSE a random match will be assigned.
+##' @param strict if TRUE, missing haul ids in age data should be unqiuely
+##'     matched when filled in, if FALSE a random match will be assigned.
+##' @param download.ca if FALSE, biological samples in DATRAS (CA data set) are
+##'     not downloaded
 ##' @return DATRASraw object.
 ##' @importFrom icesDatras getDATRAS
 ##' @export
-getDatrasExchange <- function(survey, years, quarters, strict = TRUE) {
+getDatrasExchange <- function(survey, years, quarters, strict = TRUE,
+                              download.ca = TRUE) {
     ## download data
-    ca <- getDATRAS("CA", survey = survey, years = years, quarters = quarters)
-    if (identical(ca, FALSE)) {
-        stop()
-    }
+    if (download.ca) {
+        ca <- getDATRAS("CA", survey = survey, years = years, quarters = quarters)
+        if (identical(ca, FALSE)) {
+            stop()
+        }
+    } else ca <- NULL
 
     hh <- getDATRAS("HH", survey = survey, years = years, quarters = quarters)
     hl <- getDATRAS("HL", survey = survey, years = years, quarters = quarters)
@@ -179,57 +186,61 @@ renameDATRAS <- function(x){
 ##' @export
 ## ---------------------------------------------------------------------------
 subset.DATRASraw <- function(x,...,na.rm=TRUE){
-  old.nrow <- sapply(x,nrow) ## To test what parts of x have been changed
-  args <- as.list(match.call()[-1][-1])
-  vars <- lapply(args,all.vars)
-  na2false <- function(x){
-    if(!na.rm)return(x)
-    if(!is.logical(x))stop("na2false requires logicals")
-    x[is.na(x)] <- FALSE
+    old.nrow <- sapply(x,nrow) ## To test what parts of x have been changed
+    old.nrow[sapply(old.nrow,is.null)] <- 0
+    old.nrow <- unlist(old.nrow)
+    args <- as.list(match.call()[-1][-1])
+    vars <- lapply(args,all.vars)
+    na2false <- function(x){
+        if(!na.rm)return(x)
+        if(!is.logical(x))stop("na2false requires logicals")
+        x[is.na(x)] <- FALSE
+        x
+    }
+    for(i in seq(args)){
+        var <- vars[[i]]
+        arg <- args[[i]]
+        fit <- sapply(x,function(x)any(var %in% names(x)))
+        if(!any(fit)){
+            cat("Warning - no match found for:\n")
+            print(arg)
+        }
+        if(fit[2]){ ## ===>> haul.id subset
+            x[[2]] <- x[[2]][na2false(eval(arg,x[[2]],parent.frame())),]
+            lev <- levels(factor(x[[2]]$haul.id))
+            if(!is.null(x[[1]])) x[[1]] <- x[[1]][x[[1]]$haul.id %in% lev,]
+            x[[3]] <- x[[3]][x[[3]]$haul.id %in% lev,]
+        } else { ## d1 , d3 subset
+            if(!is.null(x[[1]]) && fit[1]) x[[1]] <- x[[1]][na2false(eval(arg,x[[1]],parent.frame())),]
+            if(fit[3])x[[3]] <- x[[3]][na2false(eval(arg,x[[3]],parent.frame())),]
+        }
+    }
+    ## Remove empty factor levels
+    new.nrow <- sapply(x,nrow)
+    new.nrow[sapply(new.nrow,is.null)] <- 0
+    new.nrow <- unlist(new.nrow)
+    changed <- old.nrow!=new.nrow
+    ## d1,d3 --> refactor but not haul.id.
+    refactor13 <- function(df){
+        i <- sapply(df,is.factor)
+        i <- i & (names(df)!="haul.id")
+        df[i] <- lapply(df[i],factor)
+        df
+    }
+    ## d2 -->
+    ## * refactor all of d2.
+    ## * refactor haul.id in d1,d3 consistently
+    refactor2 <- function(df){
+        i <- sapply(df[[2]],is.factor)
+        df[[2]][i] <- lapply(df[[2]][i],factor)
+        lev <- levels(df[[2]]$haul.id)
+        if(!is.null(df[[1]])) df[[1]]$haul.id <- factor(df[[1]]$haul.id,levels=lev)
+        df[[3]]$haul.id <- factor(df[[3]]$haul.id,levels=lev)
+        df
+    }
+    for(i in c(1,3))if(changed[i] && !is.null(x[[i]])) x[[i]] <- refactor13(x[[i]])
+    if(changed[2])x <- refactor2(x)
     x
-  }
-  for(i in seq(args)){
-    var <- vars[[i]]
-    arg <- args[[i]]
-    fit <- sapply(x,function(x)any(var %in% names(x)))
-    if(!any(fit)){
-      cat("Warning - no match found for:\n")
-      print(arg)
-    }
-    if(fit[2]){ ## ===>> haul.id subset
-      x[[2]] <- x[[2]][na2false(eval(arg,x[[2]],parent.frame())),]
-      lev <- levels(factor(x[[2]]$haul.id))
-      x[[1]] <- x[[1]][x[[1]]$haul.id %in% lev,]
-      x[[3]] <- x[[3]][x[[3]]$haul.id %in% lev,]
-    } else { ## d1 , d3 subset
-      if(fit[1])x[[1]] <- x[[1]][na2false(eval(arg,x[[1]],parent.frame())),]
-      if(fit[3])x[[3]] <- x[[3]][na2false(eval(arg,x[[3]],parent.frame())),]
-    }
-  }
-  ## Remove empty factor levels
-  new.nrow <- sapply(x,nrow)
-  changed <- old.nrow!=new.nrow
-  ## d1,d3 --> refactor but not haul.id.
-  refactor13 <- function(df){
-    i <- sapply(df,is.factor)
-    i <- i & (names(df)!="haul.id")
-    df[i] <- lapply(df[i],factor)
-    df
-  }
-  ## d2 -->
-  ## * refactor all of d2.
-  ## * refactor haul.id in d1,d3 consistently
-  refactor2 <- function(df){
-    i <- sapply(df[[2]],is.factor)
-    df[[2]][i] <- lapply(df[[2]][i],factor)
-    lev <- levels(df[[2]]$haul.id)
-    df[[1]]$haul.id <- factor(df[[1]]$haul.id,levels=lev)
-    df[[3]]$haul.id <- factor(df[[3]]$haul.id,levels=lev)
-    df
-  }
-  for(i in c(1,3))if(changed[i])x[[i]] <- refactor13(x[[i]])
-  if(changed[2])x <- refactor2(x)
-  x
 }
 
 ##' @export
