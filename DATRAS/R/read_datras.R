@@ -41,9 +41,11 @@ getDatrasExchange <- function(survey, years, quarters, strict = TRUE,
     ## Inconsistencies with variable names are resolved here
     for(i in 1:3) if(!is.null(d[[i]])) d[[i]] <- renameDATRAS(d[[i]])
     d <- minus9toNA(d)
+    d <- plus999toNA(d)
     ## =====================================================
     ## Ices-square variable should have the same name ("StatRec") in age and hydro data.
     if (!is.null(d$CA) && is.null(d$CA$StatRec)) d$CA$StatRec <- d$CA$AreaCode
+
     d <- addExtraVariables(d)
     d <- fixMissingHaulIds(d, strict = strict)
 
@@ -75,6 +77,26 @@ minus9toNA<-function(x){
                 if(is.numeric(x[[i]][,ii]) ){
                     is9 <- which( abs(x[[i]][,ii]+9)<1e-14 )
                     if(length(is9)>0) x[[i]][,ii][is9] <- NA
+                }
+            }
+        }
+    }
+    x
+}
+
+
+##' Replace 999 with NA in numeric columns
+##' @title Replace 999 with NA in numeric columns
+##' @param x DATRASraw object
+##' @return DATRASraw object
+##' @export
+plus999toNA<-function(x){
+    for(i in 1:3){
+        if(!is.null(x[[i]])){
+            for(ii in 1:ncol(x[[i]])){
+              if(is.numeric(x[[i]][,ii]) ){
+                    is999 <- which( abs(x[[i]][,ii]-999)<1e-14 )
+                    if(length(is999)>0) x[[i]][,ii][is999] <- NA
                 }
             }
         }
@@ -481,6 +503,23 @@ addExtraVariables <- function(IBTS){
   }
   d3 <- mytransform(d3)
   if(!is.null(d1)) d1 <- mytransform(d1)
+
+  ## Remove hauls with NA in any of the variables for haul.id -> leads to
+  ## duplicates later (TODO check)
+  removeNAs <- function(d,
+                        vars = c("Survey", "Year", "Quarter", "Country",
+                                 "Ship", "Gear", "StNo", "HaulNo"),
+                      strict = TRUE,
+                      verbose = FALSE) {
+    keep <- complete.cases(d[, vars, drop = FALSE])
+    if (verbose) {
+      message(sum(!keep), " row(s) removed; ", sum(keep), " row(s) kept.")
+    }
+    d[keep, , drop = FALSE]
+  }
+  d2 <- removeNAs(d2)
+  d3 <- removeNAs(d3)
+
   haul.id <- quote( factor(paste(Survey,Year,Quarter,Country,Ship,Gear,StNo,HaulNo,sep=":"))  )
   if(!is.null(d1)) d1$haul.id <- eval(haul.id,d1)
   d2$haul.id <- eval(haul.id,d2)
