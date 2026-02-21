@@ -152,11 +152,11 @@ readICES <- function(file="IBTS.csv",na.strings=c("-9","-9.0","-9.00","-9.0000")
   d <- d[c("CA", "HH", "HL")]
   cat("Classes of the variables\n")
   print(lapply(d,function(x)sapply(x,class)))
-  if(sum(sapply(d,nrow)) + length(i) != length(lines))stop("csv file appears to be corrupt.")
+  if(sum(sapply(d[!sapply(d,is.null)],nrow)) + length(i) != length(lines))stop("csv file appears to be corrupt.")
   ## Inconsistencies with variable names are resolved here
   ## =====================================================
   ## Ices-square variable should have the same name ("StatRec") in age and hydro data.
-  if(is.null(d[[1]]$StatRec))d[[1]]$StatRec <- d[[1]]$AreaCode
+  if(!is.null(d[[1]]) && is.null(d[[1]]$StatRec))d[[1]]$StatRec <- d[[1]]$AreaCode
   d <- addExtraVariables(d)
   d <- fixMissingHaulIds(d,strict=strict)
   class(d) <- "DATRASraw"
@@ -594,6 +594,7 @@ addExtraVariables <- function(IBTS){
       }
   }
 
+  names(IBTS) <- c("CA","HH","HL")
   IBTS
 }
 
