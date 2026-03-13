@@ -389,7 +389,7 @@ readExchange <- function(zipfile,strict=TRUE){
 readExchangeDir <- function(path=".",pattern=".zip",strict=TRUE){
   zipfiles <- dir(path=path,pattern=pattern,recursive=TRUE,full.names=TRUE)
   all <- lapply(zipfiles,readExchange,strict=strict)
-  do.call("c",all)
+  tmp <- do.call("c",all)
 }
 
 ## ---------------------------------------------------------------------------
@@ -600,6 +600,7 @@ addExtraVariables <- function(IBTS){
 
 reorderTimeLevels <- function(x){
   for(i in 1:3){
+    if (is.null(x[[i]])) next
     x[[i]]$Year <- factor(x[[i]]$Year,levels=sort(levels(x[[i]]$Year)))
     x[[i]]$Quarter <- factor(x[[i]]$Quarter,levels=sort(levels(x[[i]]$Quarter)))
   }
@@ -608,8 +609,13 @@ reorderTimeLevels <- function(x){
 
 refactorHaulLevels <- function(df){
   lev <- levels(df[[2]]$haul.id)
-  df[[1]]$haul.id <- factor(df[[1]]$haul.id,levels=lev)
-  df[[3]]$haul.id <- factor(df[[3]]$haul.id,levels=lev)
+
+  if (!is.null(df[[1]])) {
+    df[[1]]$haul.id <- factor(df[[1]]$haul.id,levels=lev)
+  }
+  if (!is.null(df[[3]])) {
+    df[[3]]$haul.id <- factor(df[[3]]$haul.id,levels=lev)
+  }
   df
 }
 
