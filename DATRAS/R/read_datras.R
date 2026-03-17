@@ -22,6 +22,7 @@
 getDatrasExchange <- function(survey, years, quarters, strict = TRUE,
                               download.hl = TRUE, download.ca = TRUE,
                               verbose = TRUE) {
+
   ## download data
   if (download.ca) {
     if (verbose) message("Downloading CA")
@@ -513,7 +514,7 @@ addExtraVariables <- function(IBTS){
                     )
     d3
   }
-  d3 <- mytransform(d3)
+  if(!is.null(d3)) d3 <- mytransform(d3)
   if(!is.null(d1)) d1 <- mytransform(d1)
 
   ## Remove hauls with NA in any of the variables for haul.id -> leads to
@@ -530,12 +531,12 @@ addExtraVariables <- function(IBTS){
     d[keep, , drop = FALSE]
   }
   d2 <- removeNAs(d2)
-  d3 <- removeNAs(d3)
+  if(!is.null(d3)) d3 <- removeNAs(d3)
 
   haul.id <- quote( factor(paste(Survey,Year,Quarter,Country,Ship,Gear,StNo,HaulNo,sep=":"))  )
   if(!is.null(d1)) d1$haul.id <- eval(haul.id,d1)
   d2$haul.id <- eval(haul.id,d2)
-  d3$haul.id <- eval(haul.id,d3)
+  if(!is.null(d3)) d3$haul.id <- eval(haul.id,d3)
 
   ## Reconstruct the original count-variable (ICES have standardized to 1 hour).
   ## DataType:
@@ -546,10 +547,12 @@ addExtraVariables <- function(IBTS){
   ##    are not different from the submissions with data type R.
   ## HLNoAtLngt for DataTypes R and S should be multiplied with SubFactor!
   ## Note, some BITS hauls (all LT and some DK) have dataType C but SubFactor>1 - two multipliers needed!
+  if(!is.null(d3)) {
   d3 <- merge(d3,d2[c("haul.id","HaulDur","DataType")],by="haul.id",all.x=TRUE,sort=FALSE)
   multiplier1 <- ifelse(d3$DataType=="C",d3$HaulDur/60,1)
   multiplier2 <- ifelse(!is.na(d3$SubFactor),d3$SubFactor,1)
   d3$Count <- d3$HLNoAtLngt*multiplier1*multiplier2
+  }
 
   d2$abstime <- local(Year+(Month-1)*1/12+(Day-1)/365,d2)
   d2$timeOfYear <- local((Month-1)*1/12+(Day-1)/365,d2)
@@ -566,16 +569,18 @@ addExtraVariables <- function(IBTS){
   ## ---------------------------------------------------------------------------
   ## Allow some exceptions (with warning)
   ## ---------------------------------------------------------------------------
-  diff <- setdiff(levels(d2$haul.id),levels(d3$haul.id)) ## Hauls for which length is missing
+  if(!is.null(d3)) {
+    diff <- setdiff(levels(d2$haul.id),levels(d3$haul.id)) ## Hauls for which length is missing
   if(length(diff)>0){
     cat("========= WARNING: ============\n")
     cat("Hauls without length info will be interpreted as empty hauls:\n")
     print(diff)
   }
+    }
 
   ## Identical haul levels
   if(!is.null(d1)) d1$haul.id <- factor(d1$haul.id,levels=levels(d2$haul.id))
-  d3$haul.id <- factor(d3$haul.id,levels=levels(d2$haul.id))
+  if(!is.null(d3)) d3$haul.id <- factor(d3$haul.id,levels=levels(d2$haul.id))
 
   ## Check for duplicated rows in hydro data
   dups <- duplicated(d2)
@@ -586,13 +591,13 @@ addExtraVariables <- function(IBTS){
   ## ---------------------------------------------------------------------------
   ## "haul.id" consistent with Hydro data ?
   ## ---------------------------------------------------------------------------
-  stopifnot(nlevels(d3$haul.id) == nrow(d2))
+  if(!is.null(d3)) stopifnot(nlevels(d3$haul.id) == nrow(d2))
   ##stopifnot(identical(levels(h3),levels(h2)))
   cat("Consistency check passed\n")
 
   if(!is.null(d1)) IBTS[[1]] <- d1
   IBTS[[2]] <- d2
-  IBTS[[3]] <- d3
+  if(!is.null(d3)) IBTS[[3]] <- d3
 
   ## Convert Year and Quarter to factor
   for(i in 1:3){
