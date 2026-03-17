@@ -11,6 +11,8 @@
 ##' @param years Vector of years to download.
 ##' @param strict if TRUE, missing haul ids in age data should be unqiuely
 ##'     matched when filled in, if FALSE a random match will be assigned.
+##' @param download.hl if FALSE, lentgh frequency data in DATRAS (HL data set) are
+##'     not downloaded
 ##' @param download.ca if FALSE, biological samples in DATRAS (CA data set) are
 ##'     not downloaded
 ##' @param verbose Print information? Default: TRUE
@@ -18,20 +20,26 @@
 ##' @importFrom icesDatras getDATRAS
 ##' @export
 getDatrasExchange <- function(survey, years, quarters, strict = TRUE,
-                              download.ca = TRUE, verbose = TRUE) {
-    ## download data
+                              download.hl = TRUE, download.ca = TRUE,
+                              verbose = TRUE) {
+  ## download data
   if (download.ca) {
-  if (verbose) message("Downloading CA")
-        ca <- getDATRAS("CA", survey = survey, years = years, quarters = quarters)
-        if (identical(ca, FALSE)) {
-            stop()
-        }
-    } else ca <- NULL
+    if (verbose) message("Downloading CA")
+    ca <- getDATRAS("CA", survey = survey, years = years, quarters = quarters)
+    if (identical(ca, FALSE)) {
+      stop()
+    }
+  } else ca <- NULL
 
   if (verbose) message("Downloading HH")
   hh <- getDATRAS("HH", survey = survey, years = years, quarters = quarters)
-  if (verbose) message("Downloading HL")
+  if (download.hl) {
+    if (verbose) message("Downloading HL")
     hl <- getDATRAS("HL", survey = survey, years = years, quarters = quarters)
+    if (identical(hl, FALSE)) {
+      stop()
+    }
+  } else hl <- NULL
 
     ## form data into a list- must come in specific order
     d <- vector("list", 3)

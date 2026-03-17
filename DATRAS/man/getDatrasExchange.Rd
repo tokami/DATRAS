@@ -4,16 +4,34 @@
 \alias{getDatrasExchange}
 \title{Read exchange data into R.}
 \usage{
-getDatrasExchange(survey, years, quarters, strict = TRUE)
+getDatrasExchange(
+  survey,
+  years,
+  quarters,
+  strict = TRUE,
+  download.hl = TRUE,
+  download.ca = TRUE,
+  verbose = TRUE
+)
 }
 \arguments{
-\item{survey}{Name of survey to download (For a list of available names run \code{icesDatras::getSurveyList()})}
+\item{survey}{Name of survey to download (For a list of available names run
+\code{icesDatras::getSurveyList()})}
 
 \item{years}{Vector of years to download.}
 
 \item{quarters}{Vector of quarters to download.}
 
-\item{strict}{if TRUE, missing haul ids in age data should be unqiuely matched when filled in, if FALSE a random match will be assigned.}
+\item{strict}{if TRUE, missing haul ids in age data should be unqiuely
+matched when filled in, if FALSE a random match will be assigned.}
+
+\item{download.hl}{if FALSE, lentgh frequency data in DATRAS (HL data set) are
+not downloaded}
+
+\item{download.ca}{if FALSE, biological samples in DATRAS (CA data set) are
+not downloaded}
+
+\item{verbose}{Print information? Default: TRUE}
 }
 \value{
 DATRASraw object.
@@ -22,7 +40,7 @@ DATRASraw object.
 Download raw exchange data from DATRAS web services.
 }
 \details{
-This function downloads raw exchange data and converts it to a DATRASraw object.
-If multiple surveys are supplied, all files are read and combined to
+This function downloads raw exchange data and converts it to a DATRASraw
+object. If multiple surveys are supplied, all files are read and combined to
 a single object.
 }
