@@ -498,6 +498,21 @@ addExtraVariables <- function(IBTS){
   }
   if(!is.null(d3)) d3 <- mytransform(d3)
   if(!is.null(d1)) d1 <- mytransform(d1)
+  ## Remove hauls with NA in any of the variables for haul.id -> leads to duplicates later
+  removeNAs <- function(d,
+                        vars = c("Survey", "Year", "Quarter", "Country",
+                                 "Ship", "Gear", "StNo", "HaulNo"),
+                      strict = TRUE,
+                      verbose = TRUE) {
+    keep <- complete.cases(d[, vars, drop = FALSE])
+    if (verbose && keep < nrow(d)) {
+      message(sum(!keep), " row(s) with NA in at least one of the haul.id variables, these row(s) are removed; ", sum(keep), " row(s) kept.")
+    }
+    d[keep, , drop = FALSE]
+  }
+  d2 <- removeNAs(d2)
+  if(!is.null(d3)) d3 <- removeNAs(d3)
+
   haul.id <- quote( factor(paste(Survey,Year,Quarter,Country,Ship,Gear,StNo,HaulNo,sep=":"))  )
   if(!is.null(d1)) d1$haul.id <- eval(haul.id,d1)
   d2$haul.id <- eval(haul.id,d2)
